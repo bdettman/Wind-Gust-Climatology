@@ -1,0 +1,331 @@
+# ----------------------------------------------------------------------------
+# This software is in the public domain, furnished "as is", without technical
+# support, and with no warranty, express or implied, as to its usefulness for
+# any purpose.
+#
+# Windgust_fm_Wind
+#
+# Author:
+# Updated by: Brennan Dettmann (7/2020)
+# ----------------------------------------------------------------------------
+
+ToolType = "numeric"
+WeatherElementEdited = "WindGust"
+import numpy as np
+import os, time
+
+ScreenList = ["WindGust"]
+
+import SmartScript
+
+class Tool (SmartScript.SmartScript):
+    def __init__(self, dbss):
+        SmartScript.SmartScript.__init__(self, dbss)
+        
+    def execute(self, Wind,GridTimeRange):#, Wind_GridInfo):
+        "This tool derives Windgust from wind grid based on empirical study by Hollings Scholar summer 2016"
+        hour = int(time.strftime('%H', time.gmtime()))
+        day = time.strftime('%d', time.gmtime())
+        month = time.strftime('%m', time.gmtime())
+        userName = os.popen("whoami").read().strip('\n')
+        #print dir(GridTimeRange.span())
+        s1=GridTimeRange.startTime().day
+        s2=GridTimeRange.startTime().hour
+        e1=GridTimeRange.endTime().day
+        e2=GridTimeRange.endTime().hour
+        start=str(s1)+"/"+str(s2)
+        end=str(e1)+"/"+str(e2)
+        #print start
+        #print end
+        GTR=str(start) + "-" + str(end)#GridTimeRange.span()#self.GridTimeRange()
+
+        Uinfo=userName+" Running Hollings gustTool @ "+" "+month+"/"+day+"_"+str(hour)+"Z\nFor: "+GTR+"\n"
+        #print "logging run info"
+        with open('/localapps/logs/GustToolLog', 'a') as f:
+            f.write(Uinfo)
+        #EA=self.getEditArea("All")
+        Allmask=self.encodeEditArea("All")#EA)
+        DefMask=self.encodeEditArea("Default")
+          
+        GulfMask=self.encodeEditArea("Gulf")
+        GulfsmoothMask=self.encodeEditArea("Gulf3")
+        HHwyMask=self.encodeEditArea("Haines_Hwy")
+        KHwyMask=self.encodeEditArea("Klon_Hwy")
+        LynnMask=self.encodeEditArea("Lynn")
+        GasMask=self.encodeEditArea("Gastineau")
+        IcyMask=self.encodeEditArea("Icy_Cross")
+        InnerMask=self.encodeEditArea("Inner_Central")
+        ClarenceMask=self.encodeEditArea("Clarence")
+        POWMask=self.encodeEditArea("POW")
+                
+        mag,dir = Wind
+        calmMask = np.logical_and(mag==0,dir>=0)
+        #calmMask = np.where(mag==0)#,dir==0)
+        Nmask = np.logical_and(mag>0,np.logical_or(dir>=340,np.logical_and(dir>=0,dir<30)))
+        NEmask = np.logical_and(mag>0,np.logical_and(dir>=30,dir<70))
+        Emask = np.logical_and(mag>0,np.logical_and(dir>=70,dir<120))
+        SEmask = np.logical_and(mag>0,np.logical_and(dir>=120,dir<160))
+        Smask = np.logical_and(mag>0,np.logical_and(dir>=160,dir<210))
+        SWmask = np.logical_and(mag>0,np.logical_and(dir>=210,dir<250))
+        Wmask = np.logical_and(mag>0,np.logical_and(dir>=250,dir<310))
+        NWmask = np.logical_and(mag>0,np.logical_and(dir>=310,dir<340))
+        
+        # start with CWA default values then step through the groups
+        #gustMult = np.where(np.logical_and(Allmask,Nmask),2.6952499114466*pow(mag,-0.231180917889074),\
+        #                  np.where(np.logical_and(Allmask,NEmask),2.4508741219779*pow(mag,-0.169748173378025),\
+        ##                  np.where(np.logical_and(Allmask,Emask),4.3744681056*pow(mag,-0.3032260762),\
+         #                 np.where(np.logical_and(Allmask,SEmask),3.5506351043*pow(mag,-0.258406128),\
+         #                 np.where(np.logical_and(Allmask,Smask),2.8735120996* pow(mag,-0.2231100957),\
+         #                 np.where(np.logical_and(Allmask,SWmask),2.8907941942*pow(mag,-0.2044548344),\
+         #                 np.where(np.logical_and(Allmask,Wmask),3.1743620251*pow(mag,-0.23211006),\
+         #                 np.where(np.logical_and(Allmask,NWmask),2.8827206625*pow(mag,-0.2064522375),\
+                          # AKZ17         
+        gustMult = np.where(np.logical_and(AKZ17Mask,Nmask),1.627337452*pow(mag, -0.449625979),\
+                          np.where(np.logical_and(AKZ17Mask,NEmask),1.840992244*pow(mag, -0.208881547),\
+                          np.where(np.logical_and(AKZ17Mask,Emask),1.912996469*pow(mag, -0.301588239),\
+                          np.where(np.logical_and(AKZ17Mask,SEmask),1.532741294*pow(mag, -0.260738572),\
+                          np.where(np.logical_and(AKZ17Mask,Smask),1.58392923*pow(mag, -0.209538832),\
+                          np.where(np.logical_and(AKZ17Mask,SWmask),1.572607138*pow(mag, -0.218894257),\
+                          np.where(np.logical_and(AKZ17Mask,Wmask),1.61815579*pow(mag, -0.313028504),\
+                          np.where(np.logical_and(AKZ17Mask,NWmask),1.522595787*pow(mag, -0.418315733),\
+                          # AKZ18
+                          np.where(np.logical_and(AKZ18Mask,Nmask),2.608890532*pow(mag, -0.230337946),\
+                          np.where(np.logical_and(AKZ18Mask,NEmask),2.710252489*pow(mag, -0.247350888),\
+                          np.where(np.logical_and(AKZ18Mask,Emask),2.840439336*pow(mag, -0.321446298),\
+                          np.where(np.logical_and(AKZ18Mask,SEmask),2.682688336*pow(mag, -0.231844536),\
+                          np.where(np.logical_and(AKZ18Mask,Smask),2.390990458* pow(mag, -0.210994957),\
+                          np.where(np.logical_and(AKZ18Mask,SWmask),2.801622165*pow(mag, -0.267655441),\
+                          np.where(np.logical_and(AKZ18Mask,Wmask),2.939539285*pow(mag, -0.344341244),\
+                          np.where(np.logical_and(AKZ18Mask,NWmask),2.912166826*pow(mag, -0.272125828),\
+			  # AKZ19
+			  np.where(np.logical_and(AKZ19Mask,Nmask),3.351359289*pow(mag, -0.266081876),\
+                          np.where(np.logical_and(AKZ19Mask,NEmask),2.942153624*pow(mag, -0.250788505),\
+                          np.where(np.logical_and(AKZ19Mask,Emask),3.003828003*pow(mag, -0.24644306),\
+                          np.where(np.logical_and(AKZ19Mask,SEmask),3.34324937*pow(mag, -0.254967054),\
+                          np.where(np.logical_and(AKZ19Mask,Smask),2.783617444*pow(mag, -0.195669618),\
+                          np.where(np.logical_and(AKZ19Mask,SWmask),2.446293382*pow(mag, -0.171011041),\
+                          np.where(np.logical_and(AKZ19Mask,Wmask),3.024176292*pow(mag, -0.191231516),\
+                          np.where(np.logical_and(AKZ19Mask,NWmask),3.043488933*pow(mag, -0.234014585),\
+                          # AKZ20
+                          np.where(np.logical_and(AKZ20Mask,Nmask),2.524991486*pow(mag, -0.223490737),\
+                          np.where(np.logical_and(AKZ20Mask,NEmask),2.741895226*pow(mag, -0.250834599),\
+                          np.where(np.logical_and(AKZ20Mask,Emask),2.485888437*pow(mag, -0.231317562),\
+                          np.where(np.logical_and(AKZ20Mask,SEmask),2.582455716*pow(mag, -0.203526424),\
+                          np.where(np.logical_and(AKZ20Mask,Smask),2.49167854* pow(mag, -0.196292414),\
+                          np.where(np.logical_and(AKZ20Mask,SWmask),2.442126479*pow(mag, -0.1945394791),\
+                          np.where(np.logical_and(AKZ20Mask,Wmask),2.283338969*pow(mag, -0.242445906),\
+                          np.where(np.logical_and(AKZ20Mask,NWmask),2.418360938*pow(mag, -0.234024713),\
+                          # AKZ21
+                          np.where(np.logical_and(AKZ21Mask,Nmask),2.613210487*pow(mag, -0.248520934),\
+                          np.where(np.logical_and(AKZ21Mask,NEmask),2.212546117*pow(mag, -0.115634283),\
+                          np.where(np.logical_and(AKZ21Mask,Emask),1.856192176*pow(mag, -0.100530077),\
+                          np.where(np.logical_and(AKZ21Mask,SEmask),3.370234573*pow(mag, -0.372257863),\
+                          np.where(np.logical_and(AKZ21Mask,Smask),4.022964968* pow(mag, -0.428981597),\
+                          np.where(np.logical_and(AKZ21Mask,SWmask),4.531752147*pow(mag, -0.419798142),\
+                          np.where(np.logical_and(AKZ21Mask,Wmask),3.690156619*pow(mag, -0.411471187),\
+                          np.where(np.logical_and(AKZ21Mask,NWmask),2.968595017*pow(mag, -0.305652498),\
+			  # AKZ22
+			  np.where(np.logical_and(AKZ22Mask,Nmask),3.471279491*pow(mag, -0.276205923),\
+                          np.where(np.logical_and(AKZ22Mask,NEmask),3.407252129*pow(mag, -0.26517066),\
+                          np.where(np.logical_and(AKZ22Mask,Emask),3.442481221*pow(mag, -0.301751601),\
+                          np.where(np.logical_and(AKZ22Mask,SEmask),3.751161661*pow(mag, -0.369186866),\
+                          np.where(np.logical_and(AKZ22Mask,Smask),3.783025894*pow(mag, -0.346341504),\
+                          np.where(np.logical_and(AKZ22Mask,SWmask),3.415299202*pow(mag, -0.320447465),\
+                          np.where(np.logical_and(AKZ22Mask,Wmask),2.787038049*pow(mag, -0.26691178),\
+                          np.where(np.logical_and(AKZ22Mask,NWmask),2.722878049*pow(mag, -0.252962589),\
+                          # AKZ23
+                          np.where(np.logical_and(AKZ23Mask,Nmask),2.148065463*pow(mag, -0.105124019),\
+                          np.where(np.logical_and(AKZ23Mask,NEmask),2.486390869*pow(mag, -0.068564108),\
+                          np.where(np.logical_and(AKZ23Mask,Emask),2.90843024*pow(mag, -0.228453178),\
+                          np.where(np.logical_and(AKZ23Mask,SEmask),2.705422428*pow(mag, -0.178266287),\
+                          np.where(np.logical_and(AKZ23Mask,Smask),2.757603995* pow(mag, -0.187475512),\
+                          np.where(np.logical_and(AKZ23Mask,SWmask),2.454663565*pow(mag, -0.172771634),\
+                          np.where(np.logical_and(AKZ23Mask,Wmask),2.084020681*pow(mag, -0.170519801),\
+                          np.where(np.logical_and(AKZ23Mask,NWmask),2.097355457*pow(mag, -0.139956313),\
+			  # AKZ24
+			  np.where(np.logical_and(AKZ24Mask,Nmask),2.607233022*pow(mag, -0.204546057),\
+                          np.where(np.logical_and(AKZ24Mask,NEmask),2.496364999*pow(mag, -0.186914505),\
+                          np.where(np.logical_and(AKZ24Mask,Emask),2.268543639*pow(mag, -0.163160653),\
+                          np.where(np.logical_and(AKZ24Mask,SEmask),2.667379265*pow(mag, -0.214770009),\
+                          np.where(np.logical_and(AKZ24Mask,Smask),2.642430057*pow(mag, -0.244917388),\
+                          np.where(np.logical_and(AKZ24Mask,SWmask),2.48029161*pow(mag, -0.186419143),\
+                          np.where(np.logical_and(AKZ24Mask,Wmask),2.512843043*pow(mag, -0.20041248),\
+                          np.where(np.logical_and(AKZ24Mask,NWmask),2.497799173*pow(mag, -0.176969716),\
+                          # AKZ25
+                          np.where(np.logical_and(AKZ25Mask,Nmask),2.472529144*pow(mag, -0.183689178),\
+                          np.where(np.logical_and(AKZ25Mask,NEmask),2.446663757*pow(mag, -0.159924839),\
+                          np.where(np.logical_and(AKZ25Mask,Emask),2.531296942*pow(mag, -0.201641876),\
+                          np.where(np.logical_and(AKZ25Mask,SEmask),2.263206521*pow(mag, -0.205235969),\
+                          np.where(np.logical_and(AKZ25Mask,Smask),2.369564164* pow(mag, -0.235802132),\
+                          np.where(np.logical_and(AKZ25Mask,SWmask),2.365553855*pow(mag, -0.195098212),\
+                          np.where(np.logical_and(AKZ25Mask,Wmask),2.241470709*pow(mag, -0.181452242),\
+                          np.where(np.logical_and(AKZ25Mask,NWmask),2.362636347*pow(mag, -0.216523071),\
+                          # AKZ26
+                          np.where(np.logical_and(AKZ26Mask,Nmask),3.307634394*pow(mag, -0.261938311),\
+                          np.where(np.logical_and(AKZ26Mask,NEmask),3.355730444*pow(mag, -0.296231697),\
+                          np.where(np.logical_and(AKZ26Mask,Emask),3.432940867*pow(mag, -0.316799849),\
+                          np.where(np.logical_and(AKZ26Mask,SEmask),3.245504796*pow(mag, -0.291138844),\
+                          np.where(np.logical_and(AKZ26Mask,Smask),3.291229055* pow(mag, -0.260411561),\
+                          np.where(np.logical_and(AKZ26Mask,SWmask),3.215935379*pow(mag, -0.288731946),\
+                          np.where(np.logical_and(AKZ26Mask,Wmask),3.238952803*pow(mag, -0.279236572),\
+                          np.where(np.logical_and(AKZ26Mask,NWmask),3.13546938*pow(mag, -0.219933002),\
+			  # AKZ27
+			  np.where(np.logical_and(AKZ27Mask,Nmask),2.290917783*pow(mag, -0.252208511),\
+                          np.where(np.logical_and(AKZ27Mask,NEmask),2.719906304*pow(mag, -0.232685319),\
+                          np.where(np.logical_and(AKZ27Mask,Emask),3.907171038*pow(mag, -0.355187791),\
+                          np.where(np.logical_and(AKZ27Mask,SEmask),3.613590227*pow(mag, -0.373375347),\
+                          np.where(np.logical_and(AKZ27Mask,Smask),2.714595665*pow(mag, -0.24579975),\
+                          np.where(np.logical_and(AKZ27Mask,SWmask),3.035660943*pow(mag, -0.271855942),\
+                          np.where(np.logical_and(AKZ27Mask,Wmask),3.399441375*pow(mag, -0.302079492),\
+                          np.where(np.logical_and(AKZ27Mask,NWmask),3.259259425*pow(mag, -0.302426059),\
+                          # AKZ28
+                          np.where(np.logical_and(AKZ28Mask,Nmask),2.95785764*pow(mag, -0.342237558),\
+                          np.where(np.logical_and(AKZ28Mask,NEmask),2.601797939*pow(mag, -0.275119081),\
+                          np.where(np.logical_and(AKZ28Mask,Emask),2.463729633*pow(mag, -0.165411099),\
+                          np.where(np.logical_and(AKZ28Mask,SEmask),2.221181251*pow(mag, -0.165776578),\
+                          np.where(np.logical_and(AKZ28Mask,Smask),2.433230701* pow(mag, -0.148162074),\
+                          np.where(np.logical_and(AKZ28Mask,SWmask),2.3756441*pow(mag, -0.236289114),\
+                          np.where(np.logical_and(AKZ28Mask,Wmask),2.624840412*pow(mag, -0.253884901),\
+                          np.where(np.logical_and(AKZ28Mask,NWmask),2.722857047*pow(mag, -0.28063731),\
+                          # PKZ11
+                          np.where(np.logical_and(PKZ11Mask,Nmask),2.969353976*pow(mag, -0.316696354),\
+                          np.where(np.logical_and(PKZ11Mask,NEmask),2.902797162*pow(mag, -0.364734861),\
+                          np.where(np.logical_and(PKZ11Mask,Emask),2.596760642*pow(mag, -0.345949626),\
+                          np.where(np.logical_and(PKZ11Mask,SEmask),2.500784754*pow(mag, -0.232354252),\
+                          np.where(np.logical_and(PKZ11Mask,Smask),2.63680557* pow(mag, -0.259984708),\
+                          np.where(np.logical_and(PKZ11Mask,SWmask),2.642426053*pow(mag, -0.325901199),\
+                          np.where(np.logical_and(PKZ11Mask,Wmask),2.74431626*pow(mag, -0.390809165),\
+                          np.where(np.logical_and(PKZ11Mask,NWmask),2.702916559*pow(mag, -0.307842903),\
+                          # PKZ12
+                          np.where(np.logical_and(PKZ12Mask,Nmask),1.86020423*pow(mag, -0.112628719),\
+                          np.where(np.logical_and(PKZ12Mask,NEmask),2.03832208*pow(mag, -0.172271976),\
+                          np.where(np.logical_and(PKZ12Mask,Emask),2.143714013*pow(mag, -0.095729272),\
+                          np.where(np.logical_and(PKZ12Mask,SEmask),2.230635689*pow(mag, -0.118678957),\
+                          np.where(np.logical_and(PKZ12Mask,Smask),1.883459685* pow(mag, -0.114238085),\
+                          np.where(np.logical_and(PKZ12Mask,SWmask),2.244967026*pow(mag, -0.182150785),\
+                          np.where(np.logical_and(PKZ12Mask,Wmask),1.989498836*pow(mag, 0.031068475),\
+                          np.where(np.logical_and(PKZ12Mask,NWmask),2.189775201*pow(mag, -0.120599993),\
+                          # PKZ13
+                          np.where(np.logical_and(PKZ13Mask,Nmask),1.990763324*pow(mag, -0.124487245),\
+                          np.where(np.logical_and(PKZ13Mask,NEmask),1.942795705*pow(mag, -0.115375981),\
+                          np.where(np.logical_and(PKZ13Mask,Emask),2.029190213*pow(mag, -0.15067938),\
+                          np.where(np.logical_and(PKZ13Mask,SEmask),2.49622125*pow(mag, -0.202518415),\
+                          np.where(np.logical_and(PKZ13Mask,Smask),2.65016899* pow(mag, -0.239972087),\
+                          np.where(np.logical_and(PKZ13Mask,SWmask),2.453654155*pow(mag, -0.236142568),\
+                          np.where(np.logical_and(PKZ13Mask,Wmask),2.142132242*pow(mag, -0.185717175),\
+                          np.where(np.logical_and(PKZ13Mask,NWmask),2.113638167*pow(mag, -0.125115004),\
+                          # PKZ21
+                          np.where(np.logical_and(PKZ21Mask,Nmask),2.032048299*pow(mag, -0.142631796),\
+                          np.where(np.logical_and(PKZ21Mask,NEmask),2.293323986*pow(mag, -0.1581498),\
+                          np.where(np.logical_and(PKZ21Mask,Emask),2.056808521*pow(mag, -0.155106547),\
+                          np.where(np.logical_and(PKZ21Mask,SEmask),2.210333249*pow(mag, -0.180852922),\
+                          np.where(np.logical_and(PKZ21Mask,Smask),2.460968028* pow(mag, -0.250218767),\
+                          np.where(np.logical_and(PKZ21Mask,SWmask),2.074277464*pow(mag, -0.194698948),\
+                          np.where(np.logical_and(PKZ21Mask,Wmask),2.000765675*pow(mag, -0.171066327),\
+                          np.where(np.logical_and(PKZ21Mask,NWmask),2.098906693*pow(mag, -0.134906529),\
+                          # PKZ22
+                          np.where(np.logical_and(PKZ22Mask,Nmask),4.855852104*pow(mag, -0.389169549),\
+                          np.where(np.logical_and(PKZ22Mask,NEmask),3.648775945*pow(mag, -0.301592017),\
+                          np.where(np.logical_and(PKZ22Mask,Emask),2.585745917*pow(mag, -0.204798382),\
+                          np.where(np.logical_and(PKZ22Mask,SEmask),4.052492182*pow(mag, -0.353416946),\
+                          np.where(np.logical_and(PKZ22Mask,Smask),4.131300561* pow(mag, -0.347968861),\
+                          np.where(np.logical_and(PKZ22Mask,SWmask),3.483838579*pow(mag, -0.33214541),\
+                          np.where(np.logical_and(PKZ22Mask,Wmask),3.222980684*pow(mag, -0.314883572),\
+                          np.where(np.logical_and(PKZ22Mask,NWmask),3.720070659*pow(mag, -0.339707661),\
+                          # PKZ33
+                          np.where(np.logical_and(PKZ33Mask,Nmask),2.179927814*pow(mag, -0.120237576),\
+                          np.where(np.logical_and(PKZ33Mask,NEmask),2.51653343*pow(mag, -0.171657512),\
+                          np.where(np.logical_and(PKZ33Mask,Emask),2.50071447*pow(mag, -0.206803984),\
+                          np.where(np.logical_and(PKZ33Mask,SEmask),2.984583995*pow(mag, -0.261058589),\
+                          np.where(np.logical_and(PKZ33Mask,Smask),2.986933012* pow(mag, -0.248154849),\
+                          np.where(np.logical_and(PKZ33Mask,SWmask),2.589860045*pow(mag, -0.196281502),\
+                          np.where(np.logical_and(PKZ33Mask,Wmask),2.707423236*pow(mag, -0.238312925),\
+                          np.where(np.logical_and(PKZ33Mask,NWmask),2.143168663*pow(mag, -0.126877694),\
+                          # PKZ36
+                          np.where(np.logical_and(PKZ36Mask,Nmask),2.560944131*pow(mag, -0.258142897),\
+                          np.where(np.logical_and(PKZ36Mask,NEmask),2.727370347*pow(mag, -0.245274854),\
+                          np.where(np.logical_and(PKZ36Mask,Emask),2.280195323*pow(mag, -0.205682135),\
+                          np.where(np.logical_and(PKZ36Mask,SEmask),2.294979331*pow(mag, -0.156219194),\
+                          np.where(np.logical_and(PKZ36Mask,Smask),2.225398611* pow(mag, -0.091174959),\
+                          np.where(np.logical_and(PKZ36Mask,SWmask),1.965362688*pow(mag, -0.055001405),\
+                          np.where(np.logical_and(PKZ36Mask,Wmask),2.017937627*pow(mag, -0.22063173),\
+                          np.where(np.logical_and(PKZ36Mask,NWmask),2.444923687*pow(mag, -0.26330898),\
+                          # PKZ41
+                          np.where(np.logical_and(PKZ41Mask,Nmask),2.393591058*pow(mag, -0.259362786),\
+                          np.where(np.logical_and(PKZ41Mask,NEmask),2.755796005*pow(mag, -0.225544065),\
+                          np.where(np.logical_and(PKZ41Mask,Emask),2.297221976*pow(mag, -0.206831126),\
+                          np.where(np.logical_and(PKZ41Mask,SEmask),1.857654951*pow(mag, -0.131653297),\
+                          np.where(np.logical_and(PKZ41Mask,Smask),2.020364114* pow(mag, -0.170795539),\
+                          np.where(np.logical_and(PKZ41Mask,SWmask),2.27506257*pow(mag, -0.224731385),\
+                          np.where(np.logical_and(PKZ41Mask,Wmask),2.189775149*pow(mag, -0.213835726),\
+                          np.where(np.logical_and(PKZ41Mask,NWmask),2.293806455*pow(mag, -0.231698475),\
+                          # PKZ42
+                          np.where(np.logical_and(PKZ42Mask,Nmask),2.122231569*pow(mag, -0.109755836),\
+                          np.where(np.logical_and(PKZ42Mask,NEmask),2.542833448*pow(mag, -0.156845593),\
+                          np.where(np.logical_and(PKZ42Mask,Emask),2.723983496*pow(mag, -0.248952019),\
+                          np.where(np.logical_and(PKZ42Mask,SEmask),3.250510732*pow(mag, -0.312663534),\
+                          np.where(np.logical_and(PKZ42Mask,Smask),3.022456312* pow(mag, -0.257746401),\
+                          np.where(np.logical_and(PKZ42Mask,SWmask),2.634094829*pow(mag, -0.210727193),\
+                          np.where(np.logical_and(PKZ42Mask,Wmask),2.737376791*pow(mag, -0.252896163),\
+                          np.where(np.logical_and(PKZ42Mask,NWmask),2.154417025*pow(mag, -0.190140516),\
+                          # PKZ43
+                          np.where(np.logical_and(PKZ43Mask,Nmask),2.422620082*pow(mag, -0.285533722),\
+                          np.where(np.logical_and(PKZ43Mask,NEmask),2.222315799*pow(mag, -0.153585644),\
+                          np.where(np.logical_and(PKZ43Mask,Emask),2.133261081*pow(mag, -0.157369125),\
+                          np.where(np.logical_and(PKZ43Mask,SEmask),2.326020494*pow(mag, -0.217876916),\
+                          np.where(np.logical_and(PKZ43Mask,Smask),2.122194831* pow(mag, -0.184169393),\
+                          np.where(np.logical_and(PKZ43Mask,SWmask),2.295747907*pow(mag, -0.211076689),\
+                          np.where(np.logical_and(PKZ43Mask,Wmask),2.291778002*pow(mag, -0.219553452),\
+                          np.where(np.logical_and(PKZ43Mask,NWmask),2.157845737*pow(mag, -0.195485888),\
+
+
+                                   #3.3)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) \
+                          # DEFAULT VALUES
+                          np.where(np.logical_and(DefMask,Nmask),2.6952499114466*pow(mag,-0.231180917889074),\
+                          np.where(np.logical_and(DefMask,NEmask),2.4508741219779*pow(mag,-0.169748173378025),\
+                          np.where(np.logical_and(DefMask,Emask),4.3744681056*pow(mag,-0.3032260762),\
+                          np.where(np.logical_and(DefMask,SEmask),3.5506351043*pow(mag,-0.258406128),\
+                          np.where(np.logical_and(DefMask,Smask),2.8735120996* pow(mag,-0.2231100957),\
+                          np.where(np.logical_and(DefMask,SWmask),2.8907941942*pow(mag,-0.2044548344),\
+                          np.where(np.logical_and(DefMask,Wmask),3.1743620251*pow(mag,-0.23211006),\
+                          np.where(np.logical_and(DefMask,NWmask),2.8827206625*pow(mag,-0.2064522375),1.3)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) #one ')' for each line of code, needs to be updated - there are 80 right now 
+        
+        Gust = np.where(np.logical_and(Allmask,calmMask),5,mag*gustMult)
+        #Gust = np.where(GulfMask,np.greater(mag,Gust),Gust)
+        #Gust = np.where(GulfsmoothMask,self.smoothfield(Gust,2),Gust)
+        newmag=mag*1.25
+        Gust = np.where(np.greater(Gust, mag), Gust, newmag)
+        Gust = np.where(GulfsmoothMask,self.smoothfield(Gust,2),Gust)
+        newmag2=mag+3
+        Gust = np.where(np.greater(Gust, mag), Gust, newmag2)
+        #Gust = np.where(GulfsmoothMask,np.greater_equal([Gust, mag], Gust),newmag)
+        #print "Populating HollingsGust for verification"
+        #editArea = self.getActiveEditArea()
+        #self.callSmartTool("WindGust_fm_Hollings2", "HollingsGust", editArea, missingDataMode = "Skip") 
+          
+        
+        return Gust
+        
+    def smoothfield(self, phi, k):
+        
+        newphi = np.ones(phi.shape,'f8')
+        newphi = newphi * phi
+        a = np.ones(phi.shape,'f8')
+        #a = a * phi
+        b = np.ones(phi.shape,'f8')
+        #b = b * phi
+        
+        while k > 0:
+            k2 = 2*k
+            
+            a = newphi
+            b = newphi
+        
+            # left to right directions
+            a[...,k:-k]=(newphi[...,k2:]+newphi[...,:-k2])/2
+            # up/down directions
+            b[...,k:-k,:]=(newphi[...,k2:,:]+newphi[...,:-k2,:])/2
+            newphi = (a + b) / 2
+            k -= 1
+
+        return (newphi)
