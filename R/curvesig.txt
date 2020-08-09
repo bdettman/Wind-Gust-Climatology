@@ -1,0 +1,39 @@
+# This script was created to analyze the relationship between sustained wind speed and gust factors.
+# Fits the data to a power model (y=ax^b) by transforming the power function and then using linear regression.
+# Creates Excel file that obtains important values for determining significance of model results.
+
+# Coded by: Brennan Dettmann
+# Date: 7/15/2020
+
+
+"curveSig<-" = function(x, value){
+    data = value
+    names(data) = c("SusWindSpeed", "GustMult", "year", "month", "day")
+    data$year = as.numeric(as.character(data$year))
+    firstyear = min(data$year)
+    lastyear = max(data$year)
+    years = paste0(firstyear, "-", lastyear)    
+    data = data.frame(data$SusWindSpeed, data$GustMult)
+    names(data) = c("SusWindSpeed", "GustMult")
+    #data = data[order(-data$GustMult),] 			#you could use these lines of code to extract obs with the highest...
+    #data = head(data, n = round(nrow(data)*.1))		#...10% of gust multipliers
+    model = lm(log(data$GustMult)~log(data$SusWindSpeed))
+    coefs = unname(coef(model))
+    coefa = exp(coefs[1])
+    coefb = coefs[2]
+    rsquared = summary(model)$r.squared
+    pvalue = summary(model)$coefficients[8]
+    stationName = unlist(strsplit(deparse(substitute(value)), split = "_", fixed = TRUE))[1]
+    drxn = unlist(strsplit(deparse(substitute(value)), split = "_", fixed = TRUE))[2]
+    numObs = nrow(data)
+    newrow = data.frame(station=stationName, direction=drxn,
+                        a=coefa, b=coefb, 
+                        Rsq=rsquared, pv=pvalue, yearrange = years, numberObs = numObs)
+    x = rbind(x, newrow)
+    x}
+
+
+
+# Arbitrary initial values to input before running the curvessig script
+curvessig = data.frame(station="blah", direction="B", inunits = "mph", a=0, b=0,Rsq=0, pv=0, yearrange = "2000-2016", numberObs = 0)
+curvessig = curves[integer(0),]

@@ -1,0 +1,54 @@
+# This script was created to analyze the relationship between sustained wind speed and gust factors.
+# Fits the data to a power model (y=ax^b) by transforming the power function and then using linear regression.
+# Creates PDF files with the scatter and residual plots of the data.
+
+# Coded by: Brennan Dettmann
+# Date: 7/9/2020
+
+"curveFinderzones<-" = function(x, value){
+    data = value
+    #names(data) = c("number", "SusWindSpeed", "GustMult", "year", "month", "day")    #for regular
+    names(data) = c("number", "day", "GustMult", "month", "SusWindSpeed", "year", "file")    #for file name included
+    data$year = as.numeric(as.character(data$year))
+    firstyear = min(data$year)
+    lastyear = max(data$year)
+    years = paste0(firstyear, "-", lastyear)
+    data = data.frame(data$SusWindSpeed, data$GustMult)
+    names(data) = c("SusWindSpeed", "GustMult")
+    #data = data[order(-data$GustMult),] 			#you could use these lines of code to extract obs with the highest...
+    #data = head(data, n = round(nrow(data)*.1))		#...10% of gust multipliers
+    model = lm(log(data$GustMult)~log(data$SusWindSpeed))
+    coefs = unname(coef(model))
+    coefa = exp(coefs[1])
+    coefb = coefs[2]
+    rsquared = summary(model)$r.squared
+    stationName = unlist(strsplit(deparse(substitute(value)), split = "_", fixed = TRUE))[1]
+    drxn = unlist(strsplit(deparse(substitute(value)), split = "_", fixed = TRUE))[2]
+    numObs = nrow(data)
+    data = cbind(data, residuals(model))
+    data = aggregate(count ~., cbind(count=5, data), length)
+    names(data) = c("SusWindSpeed", "GustMult", "residuals", "count")
+    title = paste("Observations from...\n Station:", stationName, ",", "Years:", firstyear, "-", lastyear, ",", "Wind Direction:", drxn)
+    pdf(file = paste0("C:/Users/brenn/Desktop/Juneau Internship/Data/Zones/Analyzed Data/", stationName, "/", stationName, "_", drxn, "_plot.pdf"))
+    par(mar=c(5.1,6,6,2.1))
+    plot(data$SusWindSpeed, data$GustMult, xlab = "Sustained Wind Speed\n(knots)" , ylab = "Gust Multiplier\n (Gust Speed / Sustained Speed)", pch=21,col="darkslategrey", bg = "aquamarine4", cex = data$count/numObs*100)
+    curve(coefa*x^coefb, add = T)
+    title(main = title, line = 3) 
+    mtext(paste("Number of Observations:", prettyNum(numObs, big.mark = ",")), line = 1) 
+    mtext(bquote(R^2 == .(round(rsquared, 2))), line = -3)
+    mtext(bquote(y == .(round(coefa, 2))*x^.(round(coefb,2))), line = -2)
+    dev.off()
+    pdf(file = paste0("C:/Users/brenn/Desktop/Juneau Internship/Data/Zones/Analyzed Data/", stationName, "/", stationName, "_", drxn,"_residuals.pdf"))
+    plot(data$SusWindSpeed, data$residuals, pch = 22, col = "violetred4", bg = "violetred1", lwd=2, cex = data$count/numObs*100, xlab="Sustained Wind Speed \n(knots)", ylab = "Residuals", main = paste("Residuals from...\n Station:", stationName, ",", "Wind Direction:", drxn))
+    abline(h=0, lty=2)
+    dev.off()
+    newrow = data.frame(station=stationName, direction=drxn,
+                        a=coefa, b=coefb, 
+                        Rsq=rsquared, yearrange = years, numberObs = numObs)
+    x = rbind(x, newrow)
+    x}
+
+
+# Arbitrary initial values to input before running the curveFinderzones script
+curves = data.frame(station="blah", direction="B", inunits = "mph", a=0, b=0,Rsq=0, yearrange = "2000-2016", numberObs = 0)
+curves = curves[integer(0),]
